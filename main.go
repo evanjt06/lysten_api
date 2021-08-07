@@ -80,7 +80,7 @@ func main() {
 
 	log.Printf("Youtube MP3 Download Backend Server Started")
 	handler := cors.Default().Handler(mux)
-	http.ListenAndServe(":8080", handler)
+	_ = http.ListenAndServe(":8080", handler)
 }
 
 func WalkMatch() string {
