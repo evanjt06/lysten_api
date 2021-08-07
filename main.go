@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/aldelo/common/wrapper/aws/awsregion"
 	"github.com/aldelo/common/wrapper/s3"
-	"github.com/rs/cors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -79,8 +78,8 @@ func main() {
 	mux.HandleFunc("/", handler)
 
 	log.Printf("Youtube MP3 Download Backend Server Started")
-	handler := cors.Default().Handler(mux)
-	_ = http.ListenAndServe(":8080", handler)
+	//handler := cors.Default().Handler(mux)
+	_ = http.ListenAndServe(":8080", mux)
 }
 
 func WalkMatch() string {
