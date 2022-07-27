@@ -49,7 +49,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				log.Fatal(err)
 			}
 
-			location, err := s.Upload(nil, byteContainer, r.URL.Path[1:]+".mp3")
+			location, err := s.Upload(nil, byteContainer, "music/" + r.URL.Path[1:]+".mp3")
 
 
 
@@ -81,14 +81,8 @@ func main() {
 	mux.HandleFunc("/", handler)
 
 	log.Printf("Youtube MP3 Download Backend Server Started")
-	//handler := cors.Default().Handler(mux)
 
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		port = "5000"
-	}
-
-	_ = http.ListenAndServe(port, mux)
+	_ = http.ListenAndServe(":8080", mux)
 }
 
 func WalkMatch() string {
