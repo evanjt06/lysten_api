@@ -12,8 +12,6 @@ import (
 	"strings"
 )
 
-// "github.com/aldelo/common/wrapper/aws/awsregion"
-//	"github.com/aldelo/common/wrapper/s3"
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "OK")
@@ -25,14 +23,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
 
-	urlPath := r.FormValue("q")
-
-	if len(urlPath) == 11 && urlPath != "favicon.ico" {
-		log.Printf("Got request for : %s", urlPath)
+	if len(r.URL.Path[1:]) == 11 && r.URL.Path[1:] != "favicon.ico" {
+		log.Printf("Got request for : %s", r.URL.Path[1:])
 		//err := exec.Command("youtube-dl", "--extract-audio", "--audio-format", "mp3", "--output", r.URL.Path[1:] + ".%%(ext)s", r.URL.Path[1:]).Run()
-		err := exec.Command("youtube-dl", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", "--restrict-filenames", urlPath).Run()
+		err := exec.Command("youtube-dl", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", "--restrict-filenames", r.URL.Path[1:]).Run()
 		if err != nil {
-			log.Printf("Error occurred processing URL : %s", urlPath)
+			log.Printf("Error occurred processing URL : %s", r.URL.Path[1:])
 		}else{
 
 			file := WalkMatch()
@@ -59,6 +55,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			location, err := s.Upload(nil, byteContainer, "music/" + urlPath+".mp3")
+
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -78,14 +75,13 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else{
-		log.Printf("Bad URL : %s", urlPath)
+		log.Printf("Bad URL : %s", r.URL.Path[1:])
 	}
 }
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/upload", handler)
-	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/", handler)
 
 	log.Printf("Youtube MP3 Download Backend Server Started")
 	//handler := cors.Default().Handler(mux)
@@ -111,7 +107,3 @@ func WalkMatch() string {
 
 	return ""
 }
-//  GOOS=linux GOARCH=amd64 go build -o lysten_api_linux
-// ssh -i ~/.ssh/spacedev.pem ubuntu@54.197.68.232
-// scp -i ~/.ssh/spacedev.pem lysten_api_linux ubuntu@54.197.68.232:/home/ubuntu/lystenapi
-// systemctl --lines=5000 status lystenapi
