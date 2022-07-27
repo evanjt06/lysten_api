@@ -87,9 +87,13 @@ func main() {
 	mux.HandleFunc("/upload", handler)
 	mux.HandleFunc("/health", healthHandler)
 
-	log.Printf("Youtube MP3 Download Backend Server Started")
+	log.Printf("Youtube MP3 Download Backend Server Started 2")
 
-	_ = http.ListenAndServe(":8080", mux)
+	err := http.ListenAndServe(":8080", mux)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
 
 func WalkMatch() string {
@@ -107,6 +111,7 @@ func WalkMatch() string {
 }
 
 //  GOOS=linux GOARCH=amd64 go build -o lysten_api_linux
-// ssh -i ~/.ssh/spacedev.pem ubuntu@54.197.68.232
-// scp -i ~/.ssh/spacedev.pem lysten_api_linux ubuntu@54.197.68.232:/home/ubuntu/lystenapi
+// ssh -i ~/.ssh/lysten.pem ubuntu@50.18.240.5
+// scp -i ~/.ssh/lysten.pem lysten_api_linux ubuntu@50.18.240.5:/home/ubuntu/api
 // systemctl --lines=5000 status lystenapi
+// 50.18.240.5
