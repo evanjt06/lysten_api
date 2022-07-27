@@ -12,10 +12,6 @@ import (
 	"strings"
 )
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "OK")
-}
-
 func handler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -53,7 +49,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				log.Fatal(err)
 			}
 
-			location, err := s.Upload(nil, byteContainer, "music/" + urlPath+".mp3")
+			location, err := s.Upload(nil, byteContainer, r.URL.Path[1:]+".mp3")
 
 			if err != nil {
 				log.Fatal(err)
