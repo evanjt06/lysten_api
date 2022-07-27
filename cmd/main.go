@@ -51,6 +51,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 			location, err := s.Upload(nil, byteContainer, r.URL.Path[1:]+".mp3")
 
+
+
 			if err != nil {
 				log.Fatal(err)
 			}
