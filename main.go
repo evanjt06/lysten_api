@@ -26,7 +26,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	if len(urlPath) == 11 && urlPath != "favicon.ico" {
 		log.Printf("Got request for : %s", urlPath)
-		err := exec.Command("yt-dlp", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", "--restrict-filenames", urlPath).Run()
+		err := exec.Command("yt-dlp", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", urlPath).Run()
 		if err != nil {
 			log.Printf("Error occurred processing URL : %s", urlPath)
 		}else{
@@ -115,5 +115,3 @@ func WalkMatch() string {
 // scp -i ~/.ssh/lysten.pem lysten_api_linux ubuntu@50.18.240.5:/home/ubuntu/api
 // systemctl --lines=5000 status lystenapi
 // 50.18.240.5
-
-// todo onboard song picking step easy
