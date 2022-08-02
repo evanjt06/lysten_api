@@ -172,8 +172,6 @@ func main() {
 
 				log.Println(location)
 
-				c.JSON(200, strings.Replace(file, "\"", "", -1))
-
 				e := os.Remove(file)
 				if e != nil {
 					c.JSON(500, gin.H{
@@ -182,6 +180,9 @@ func main() {
 
 					return
 				}
+
+				c.JSON(200, strings.Replace(file, "\"", "", -1))
+
 			}
 
 		} else{
@@ -196,17 +197,7 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, "OK")
 	})
-	r.GET("/check", func(c *gin.Context) {
-		//urlPath := c.Query("q")
-		//if len(urlPath) != 11 {
-		//	c.JSON(500, "invalid URL")
-		//	return
-		//}
-		//url := "https://www.googleapis.com/youtube/v3/videos?id=" + urlPath + "&part=contentDetails&key=AIzaSyAfAI5KU0Cmh6oKOeAjXskv4yMfc4Xzg8k"
 
-
-
-	})
 	log.Printf("Youtube MP3 Download Backend Server Started 2")
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
