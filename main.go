@@ -15,6 +15,87 @@ import (
 
 func main() {
 	r := gin.Default()
+	r.GET("/uploadTiktok", func(c *gin.Context) {
+		urlPath := c.Query("q")
+
+		// yt-dlp --referer "https://www.tiktok.com" "https://www.tiktok.com/t/ZTRUJ1NmF/?k=1" --extract-audio --audio-format mp3 -o "asd.mp3"
+		if len(urlPath) == 0 {
+			c.JSON(500, "invalid URL")
+		}
+		log.Println("Got request for ", urlPath)
+
+		err := exec.Command("yt-dlp", "--referer", "\"https://www.tiktok.com\"", urlPath, "--extract-audio", "--audio-format", "mp3", "-o", "%(title)s.%(ext)s").Run()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"message": "Error processing URL : " + urlPath,
+			})
+
+			return
+		}else{
+			file := WalkMatch()
+			log.Println("THE TITLE IS: " + file)
+
+			urlPath := strings.Replace(urlPath, "https://www.tiktok.com/t/", "", -1)
+			urlPath = strings.Replace(urlPath, "/?k=1", "", -1)
+
+			s := s3.S3{
+				AwsRegion:   awsregion.AWS_us_west_2_oregon,
+				HttpOptions: nil,
+				BucketName:  "calc.masa.space",
+			}
+			err = s.Connect()
+			if err != nil {
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
+			}
+			f, err := os.Open(file)
+			if err != nil {
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
+			}
+			defer f.Close()
+
+			byteContainer, err := ioutil.ReadAll(f)
+			if err != nil {
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
+			}
+
+			location, err := s.Upload(nil, byteContainer, "music/" + urlPath + ".mp3")
+
+			if err != nil {
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
+			}
+
+			log.Println(location)
+
+			e := os.Remove(file)
+			if e != nil {
+				c.JSON(500, gin.H{
+					"message": e.Error(),
+				})
+
+				return
+			}
+
+
+			c.JSON(200, file)
+
+		}
+	})
 	r.GET("/upload", func(c *gin.Context) {
 
 		urlPath := c.Query("q")
