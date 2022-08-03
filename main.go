@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/aldelo/common/wrapper/aws/awsregion"
 	"github.com/aldelo/common/wrapper/s3"
+	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,28 +13,30 @@ import (
 	"strings"
 )
 
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "OK")
-}
+func main() {
+	r := gin.Default()
+	r.GET("/uploadTiktok", func(c *gin.Context) {
+		urlPath := c.Query("q")
 
-func handler(w http.ResponseWriter, r *http.Request) {
+		// yt-dlp --referer "https://www.tiktok.com" "https://www.tiktok.com/t/ZTRUJ1NmF/?k=1" --extract-audio --audio-format mp3 -o "asd.mp3"
+		if len(urlPath) == 0 {
+			c.JSON(500, "invalid URL")
+		}
+		log.Println("Got request for ", urlPath)
 
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-
-	urlPath := r.FormValue("q")
-
-	if len(urlPath) == 11 && urlPath != "favicon.ico" {
-		log.Printf("Got request for : %s", urlPath)
-		//err := exec.Command("youtube-dl", "--extract-audio", "--audio-format", "mp3", "--output", r.URL.Path[1:] + ".%%(ext)s", r.URL.Path[1:]).Run()
-		err := exec.Command("youtube-dl", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", "--restrict-filenames", urlPath).Run()
+		err := exec.Command("yt-dlp", "--referer", "\"https://www.tiktok.com\"", urlPath, "--extract-audio", "--audio-format", "mp3", "-o", "%(title)s.%(ext)s").Run()
 		if err != nil {
-			log.Printf("Error occurred processing URL : %s", urlPath)
-		}else{
+			c.JSON(500, gin.H{
+				"message": "Error processing URL : " + urlPath,
+			})
 
+			return
+		}else{
 			file := WalkMatch()
 			log.Println("THE TITLE IS: " + file)
+
+			urlPath := strings.Replace(urlPath, "https://www.tiktok.com/t/", "", -1)
+			urlPath = strings.Replace(urlPath, "/?k=1", "", -1)
 
 			s := s3.S3{
 				AwsRegion:   awsregion.AWS_us_west_2_oregon,
@@ -42,52 +45,163 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			err = s.Connect()
 			if err != nil {
-				log.Fatal("could not connect to s3 - aws")
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
 			}
 			f, err := os.Open(file)
 			if err != nil {
-				log.Fatal(err)
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
 			}
 			defer f.Close()
 
 			byteContainer, err := ioutil.ReadAll(f)
 			if err != nil {
-				log.Fatal(err)
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
 			}
 
-			location, err := s.Upload(nil, byteContainer, urlPath+".mp3")
+			location, err := s.Upload(nil, byteContainer, "music/" + urlPath + ".mp3")
+
 			if err != nil {
-				log.Fatal(err)
+				c.JSON(500, gin.H{
+					"message": err.Error(),
+				})
+
+				return
 			}
 
 			log.Println(location)
 
-			w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
-			w.Header().Set("Content-Type", "audio/mp3")
-			//http.ServeFile(w, r, r.URL.Path[1:]+".mp3")
-			// return file (or the title of the video)
-			_, _ = fmt.Fprintf(w, file)
-
 			e := os.Remove(file)
 			if e != nil {
-				log.Fatal(e)
+				c.JSON(500, gin.H{
+					"message": e.Error(),
+				})
+
+				return
 			}
+
+
+			c.JSON(200, file)
+
+		}
+	})
+	r.GET("/upload", func(c *gin.Context) {
+
+		urlPath := c.Query("q")
+
+		if len(urlPath) == 11 && urlPath != "favicon.ico" {
+			log.Printf("Got request for : %s", urlPath)
+
+			err, valid := IsVideoValid(urlPath)
+			if err != nil {
+				c.JSON(500, err.Error())
+
+				return
+			}
+
+			if !valid {
+				c.JSON(500, "Video too long")
+
+				return
+			}
+
+			err = exec.Command("yt-dlp", "--extract-audio", "--audio-format", "mp3", "--output", "%(title)s.%(ext)s", urlPath).Run()
+			if err != nil {
+				c.JSON(500, gin.H{
+					"message": "Error processing URL : " + urlPath,
+				})
+
+				return
+			}else{
+
+				file := WalkMatch()
+				log.Println("THE TITLE IS: " + file)
+
+				s := s3.S3{
+					AwsRegion:   awsregion.AWS_us_west_2_oregon,
+					HttpOptions: nil,
+					BucketName:  "calc.masa.space",
+				}
+				err = s.Connect()
+				if err != nil {
+					c.JSON(500, gin.H{
+						"message": err.Error(),
+					})
+
+					return
+				}
+				f, err := os.Open(file)
+				if err != nil {
+					c.JSON(500, gin.H{
+						"message": err.Error(),
+					})
+
+					return
+				}
+				defer f.Close()
+
+				byteContainer, err := ioutil.ReadAll(f)
+				if err != nil {
+					c.JSON(500, gin.H{
+						"message": err.Error(),
+					})
+
+					return
+				}
+
+				location, err := s.Upload(nil, byteContainer, "music/" + urlPath+".mp3")
+
+				if err != nil {
+					c.JSON(500, gin.H{
+						"message": err.Error(),
+					})
+
+					return
+				}
+
+				log.Println(location)
+
+				e := os.Remove(file)
+				if e != nil {
+					c.JSON(500, gin.H{
+						"message": e.Error(),
+					})
+
+					return
+				}
+
+				c.JSON(200, strings.Replace(file, "\"", "", -1))
+
+			}
+
+		} else{
+			c.JSON(500, gin.H{
+				"message": "Bad URL : " + urlPath,
+			})
+
+			return
 		}
 
-	} else{
-		log.Printf("Bad URL : %s", urlPath)
-	}
-}
-func main() {
-	mux := http.NewServeMux()
+	})
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, "OK")
+	})
 
-	mux.HandleFunc("/upload", handler)
-	mux.HandleFunc("/health", healthHandler)
-
-	log.Printf("Youtube MP3 Download Backend Server Started")
-	//handler := cors.Default().Handler(mux)
-	_ = http.ListenAndServe(":8080", mux)
+	log.Printf("Youtube MP3 Download Backend Server Started 2")
+	r.Run() // listen and serve on 0.0.0.0:8080
 }
+
 
 func WalkMatch() string {
 	files, err := ioutil.ReadDir(".")
@@ -102,7 +216,47 @@ func WalkMatch() string {
 
 	return ""
 }
+
+func IsVideoValid(url string) (error, bool) {
+	resp, err := http.Get("https://www.googleapis.com/youtube/v3/videos?id=" + url + "&part=contentDetails&key=AIzaSyAfAI5KU0Cmh6oKOeAjXskv4yMfc4Xzg8k")
+	if err != nil {
+		return err, false
+	}
+	//We Read the response body on the line below.
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err, false
+	}
+
+	var yt YoutubeData
+	//Convert the body to type string
+	err = json.Unmarshal(body, &yt)
+	if err != nil {
+		return err, false
+	}
+
+	h := yt.Items[0].ContentDetails.Duration
+	if strings.Contains(h, "H") {
+		return nil, false
+	}
+	return nil, true
+}
+
+
+type YoutubeData struct {
+	Items []YoutubeChild `json:"items"`
+}
+
+type YoutubeChild struct {
+	ContentDetails ContentDetails `json:"contentDetails"`
+}
+
+type ContentDetails struct {
+	Duration string `json:"duration"`
+}
+
 //  GOOS=linux GOARCH=amd64 go build -o lysten_api_linux
-// ssh -i ~/.ssh/spacedev.pem ubuntu@54.197.68.232
-// scp -i ~/.ssh/spacedev.pem lysten_api_linux ubuntu@54.197.68.232:/home/ubuntu/lystenapi
+// ssh -i ~/.ssh/lysten.pem ubuntu@50.18.240.5
+// scp -i ~/.ssh/lysten.pem lysten_api_linux ubuntu@50.18.240.5:/home/ubuntu/api
 // systemctl --lines=5000 status lystenapi
+// 50.18.240.5
